@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "MagicBox Windows",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-windows/MagicBox.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "${config:cmake.debugConfig.miDebuggerPath}",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "${config:cmake.configureSettings.CMAKE_PREFIX_PATH}/bin;${config:cmake.environment.MAGICBOX_MINGW_BIN};${env:PATH}"
+                }
+            ],
+            "preLaunchTask": "MagicBox: 编译 Windows"
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+{
+    "cmake.cmakePath": "C:/Qt/Tools/CMake_64/bin/cmake.exe",
+    "cmake.ctestPath": "C:/Qt/Tools/CMake_64/bin/ctest.exe",
+    "cmake.buildDirectory": "${workspaceFolder}/build-windows",
+    "cmake.generator": "Ninja",
+    "cmake.configureOnOpen": false,
+    "cmake.configureSettings": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.0/mingw_64",
+        "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
+    },
+    "cmake.environment": {
+        "MAGICBOX_MINGW_BIN": "C:/Qt/Tools/mingw1310_64/bin",
+        "PATH": "C:/Qt/6.11.0/mingw_64/bin;C:/Qt/Tools/mingw1310_64/bin;${env:PATH}"
+    },
+    "cmake.debugConfig": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "C:/Qt/Tools/mingw1310_64/bin/gdb.exe"
+    },
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build-windows/compile_commands.json",
+    "C_Cpp.default.compilerPath": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+    "C_Cpp.default.cppStandard": "c++17",
+    "terminal.integrated.env.windows": {
+        "PATH": "C:/Qt/6.11.0/mingw_64/bin;C:/Qt/Tools/mingw1310_64/bin;C:/Qt/Tools/CMake_64/bin;C:/Qt/Tools/Ninja;${env:PATH}"
+    }
+}

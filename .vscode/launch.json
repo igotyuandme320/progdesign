@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Volumes/NEWJEANSYLC/程序设计/day1",
+      "program": "/Volumes/NEWJEANSYLC/程序设计/day1/build/Debug/outDebug"
+    }
+  ]
+}

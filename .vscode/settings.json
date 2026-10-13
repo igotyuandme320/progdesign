@@ -1,0 +1,17 @@
+{
+  "cmake.cmakePath": "/opt/homebrew/bin/cmake",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.configureOnOpen": true,
+  "cmake.configureSettings": {
+    "CMAKE_PREFIX_PATH": "/opt/homebrew",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": true
+  },
+  "clangd.path": "/usr/bin/clangd",
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build"
+  ],
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "C_Cpp_Runner.msvcBatchPath": ""
+}

@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PATH": "${config:cmake.configureSettings.CMAKE_PREFIX_PATH}/bin;${config:cmake.environment.MAGICBOX_MINGW_BIN};${env:PATH}"
+        }
+    },
+    "tasks": [
+        {
+            "label": "MagicBox: 配置 Windows",
+            "type": "process",
+            "command": "${config:cmake.cmakePath}",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build-windows",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_PREFIX_PATH=${config:cmake.configureSettings.CMAKE_PREFIX_PATH}",
+                "-DCMAKE_CXX_COMPILER=${config:cmake.configureSettings.CMAKE_CXX_COMPILER}",
+                "-DCMAKE_MAKE_PROGRAM=${config:cmake.configureSettings.CMAKE_MAKE_PROGRAM}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "MagicBox: 编译 Windows",
+            "type": "process",
+            "command": "${config:cmake.cmakePath}",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build-windows",
+                "--parallel",
+                "4"
+            ],
+            "dependsOn": "MagicBox: 配置 Windows",
+            "problemMatcher": "$gcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "MagicBox: 运行 Windows",
+            "type": "process",
+            "command": "${workspaceFolder}/build-windows/MagicBox.exe",
+            "dependsOn": "MagicBox: 编译 Windows",
+            "problemMatcher": []
+        }
+    ]
+}
