@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Windows MinGW",
+      "configurationProvider": "ms-vscode.cmake-tools",
+      "compileCommands": "${workspaceFolder}/build-windows/compile_commands.json",
+      "includePath": ["${workspaceFolder}/src"],
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "windows-gcc-x64"
+    }
+  ]
+}

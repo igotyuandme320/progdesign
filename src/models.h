@@ -3,7 +3,7 @@
 #include <QString>
 #include <QVector>
 
-/** 乘务员账户初稿；登录功能在第二天接入。 */
+/** 课程演示用的乘务员账户。 */
 struct CrewAccount {
     QString employeeId; ///< 工号。
     QString name; ///< 乘务员姓名。
@@ -19,9 +19,10 @@ struct Passenger {
     QString seat; ///< 座位号。
     QString phoneModel; ///< 手机机型。
     QString phone; ///< 手机号码。
-    QString backupContact; ///< 备用联系方式，后续登记时必填。
+    QString backupContact; ///< 备用联系方式，登记时必填。
     QString boxNumber; ///< 盒子编号。
     QString issuedBy; ///< 发放人工号。
+    QString issuedAt; ///< 发放时间，格式为 yyyy-MM-dd HH:mm:ss。
     QString returnedBy; ///< 回收人工号。
     bool returned = false; ///< 是否已归还。
     bool deviceLeft = false; ///< 是否遗留设备。

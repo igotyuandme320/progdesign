@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "options": { "cwd": "${workspaceFolder}" },
+  "tasks": [
+    {
+      "label": "MagicBox: 配置 Mac",
+      "type": "process",
+      "command": "${config:cmake.cmakePath}",
+      "args": ["-S", "${workspaceFolder}", "-B", "${workspaceFolder}/build", "-DCMAKE_PREFIX_PATH=/opt/homebrew", "-DCMAKE_BUILD_TYPE=Debug"],
+      "problemMatcher": []
+    },
+    {
+      "label": "MagicBox: 编译 Mac",
+      "type": "process",
+      "command": "${config:cmake.cmakePath}",
+      "args": ["--build", "${workspaceFolder}/build", "--parallel", "4"],
+      "dependsOn": "MagicBox: 配置 Mac",
+      "problemMatcher": "$gcc",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "MagicBox: 运行 Mac",
+      "type": "process",
+      "command": "${workspaceFolder}/build/MagicBox.app/Contents/MacOS/MagicBox",
+      "dependsOn": "MagicBox: 编译 Mac",
+      "problemMatcher": []
+    }
+  ]
+}
