@@ -23,7 +23,8 @@ bool DataStore::load(FlightData &data, QString &error) const {
         error = "数据文件损坏，请检查 records.json。"; return false;
     }
     const QJsonObject root = document.object(); ///< 文件根对象。
-    if (root["version"] != QJsonValue(1) || !root["passengers"].isArray()) {
+    const bool legacy = root["version"] == QJsonValue(1); ///< 是否为第二天的旧格式。
+    if ((!legacy && root["version"] != QJsonValue(2)) || !root["passengers"].isArray()) {
         error = "数据文件版本或结构不正确。"; return false;
     }
     FlightData candidate; ///< 全部校验成功后才交给业务层的档案。
@@ -44,8 +45,22 @@ bool DataStore::load(FlightData &data, QString &error) const {
         item.phone = object["phone"].toString(); item.backupContact = object["backupContact"].toString();
         item.boxNumber = object["boxNumber"].toString(); item.issuedBy = object["issuedBy"].toString();
         item.issuedAt = object["issuedAt"].toString(); item = normalizePassenger(item);
+        // 旧档案尚未回收，采用默认值；新档案必须完整保存回收及处理字段。
+        if (!legacy) {
+            if (!object["returned"].isBool() || !object["deviceLeft"].isBool() || !object["deviceClaimed"].isBool()) {
+                error = "文件中的回收状态不正确。"; return false;
+            }
+            for (const QString &field : {"returnedBy", "returnedAt", "contactNote", "contactedBy", "contactedAt", "claimedBy", "claimedAt"}) { // field：必须为文本的处理字段。
+                if (!object[field].isString()) { error = "文件中的处理信息不完整。"; return false; }
+            }
+            item.returned = object["returned"].toBool(); item.returnedBy = object["returnedBy"].toString();
+            item.returnedAt = object["returnedAt"].toString(); item.deviceLeft = object["deviceLeft"].toBool();
+            item.deviceClaimed = object["deviceClaimed"].toBool(); item.contactNote = object["contactNote"].toString();
+            item.contactedBy = object["contactedBy"].toString(); item.contactedAt = object["contactedAt"].toString();
+            item.claimedBy = object["claimedBy"].toString(); item.claimedAt = object["claimedAt"].toString();
+        }
         // 拒绝不完整及重复记录，避免损坏文件被覆盖成新档案。
-        if (!validatePassenger(item).isEmpty() || (item.issuedBy != "1001" && item.issuedBy != "1002") ||
+        if (!validatePassenger(item).isEmpty() || !validateRecovery(item).isEmpty() || (item.issuedBy != "1001" && item.issuedBy != "1002") ||
             !QDateTime::fromString(item.issuedAt, "yyyy-MM-dd HH:mm:ss").isValid() ||
             boxes.contains(item.boxNumber) || documents.contains(item.documentNumber) || seats.contains(item.seat) || passes.contains(item.boardingPass)) {
             error = "文件中存在无效或重复的乘客记录。"; return false;
@@ -64,11 +79,15 @@ bool DataStore::save(const FlightData &data, QString &error) const {
             {"name", item.name}, {"documentType", item.documentType}, {"documentNumber", item.documentNumber},
             {"boardingPass", item.boardingPass}, {"seat", item.seat}, {"phoneModel", item.phoneModel},
             {"phone", item.phone}, {"backupContact", item.backupContact}, {"boxNumber", item.boxNumber},
-            {"issuedBy", item.issuedBy}, {"issuedAt", item.issuedAt}
+            {"issuedBy", item.issuedBy}, {"issuedAt", item.issuedAt},
+            {"returned", item.returned}, {"returnedBy", item.returnedBy}, {"returnedAt", item.returnedAt},
+            {"deviceLeft", item.deviceLeft}, {"deviceClaimed", item.deviceClaimed},
+            {"contactNote", item.contactNote}, {"contactedBy", item.contactedBy}, {"contactedAt", item.contactedAt},
+            {"claimedBy", item.claimedBy}, {"claimedAt", item.claimedAt}
         });
     }
     const QJsonObject root = { ///< 带版本号的完整档案。
-        {"version", 1}, {"number", data.number}, {"date", data.date.toString(Qt::ISODate)},
+        {"version", 2}, {"number", data.number}, {"date", data.date.toString(Qt::ISODate)},
         {"origin", data.origin}, {"destination", data.destination}, {"passengers", passengers}
     };
     if (!QDir().mkpath(QFileInfo(filePath).absolutePath())) { error = "无法创建数据目录。"; return false; }

@@ -1,5 +1,6 @@
 #pragma once
 #include <QDate>
+#include <QMetaType>
 #include <QString>
 #include <QVector>
 
@@ -24,8 +25,15 @@ struct Passenger {
     QString issuedBy; ///< 发放人工号。
     QString issuedAt; ///< 发放时间，格式为 yyyy-MM-dd HH:mm:ss。
     QString returnedBy; ///< 回收人工号。
+    QString returnedAt; ///< 回收时间，格式为 yyyy-MM-dd HH:mm:ss。
     bool returned = false; ///< 是否已归还。
-    bool deviceLeft = false; ///< 是否遗留设备。
+    bool deviceLeft = false; ///< 回收时是否发现遗留设备，领取后仍保留此记录。
+    bool deviceClaimed = false; ///< 遗留设备是否已领取。
+    QString contactNote; ///< 联系乘客的备注。
+    QString contactedBy; ///< 最近保存联系备注的乘务员工号。
+    QString contactedAt; ///< 最近保存联系备注的时间。
+    QString claimedBy; ///< 确认设备领取的乘务员工号。
+    QString claimedAt; ///< 确认设备领取的时间。
     int rating = -1; ///< -1 未评价，1 满意，2 不满意，0 不表态。
     QString opinion; ///< 意见与建议。
 };
@@ -38,3 +46,7 @@ struct FlightData {
     QString destination; ///< 目的地。
     QVector<Passenger> passengers; ///< 该航班的乘客列表。
 };
+
+Q_DECLARE_METATYPE(CrewAccount)
+Q_DECLARE_METATYPE(Passenger)
+Q_DECLARE_METATYPE(FlightData)

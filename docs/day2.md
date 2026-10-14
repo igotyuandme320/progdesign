@@ -4,7 +4,7 @@
 
 | 人员 | 当天代码分工 | 文件 |
 | --- | --- | --- |
-| 殷澜城（Leader、构思者） | 确定操作流程，实现登录、换岗、重复检查和发放业务，整合工程与验收测试 | boxmanager.h / .cpp、main.cpp、CMakeLists.txt、tests/day2_test.cpp |
+| 殷澜城 | 确定操作流程，实现登录、换岗、重复检查和发放业务，整合工程与验收测试 | boxmanager.h / .cpp、main.cpp、CMakeLists.txt、tests/day2_test.cpp |
 | 顾辰熙 | 接入登录和航班表单、登记按钮、提示文字及已登记表格 | mainwindow.h / .cpp |
 | 章智恒 | 编写必填项、手机号和身份证校验，实现 JSON 读取与安全保存 | validation.h / .cpp、datastore.h / .cpp、models.h |
 

@@ -1,4 +1,5 @@
 #include "validation.h"
+#include <QDateTime>
 #include <QRegularExpression>
 
 Passenger normalizePassenger(Passenger passenger) {
@@ -44,5 +45,30 @@ QString validateFlight(const FlightData &flight) {
         return "请完整填写航班号、日期、出发地和目的地。";
     if (flight.number.size() > 200 || flight.origin.size() > 200 || flight.destination.size() > 200)
         return "航班信息不能超过 200 个字符。";
+    return {};
+}
+
+/** @brief 检查操作责任信息。 @param crew 工号。 @param time 操作时间。 @return 工号与时间是否有效。 */
+static bool validOperation(const QString &crew, const QString &time) {
+    return (crew == "1001" || crew == "1002") && QDateTime::fromString(time, "yyyy-MM-dd HH:mm:ss").isValid();
+}
+
+QString validateRecovery(const Passenger &passenger) {
+    // 未归还时不能有回收信息；没有遗留设备时不能有联系或领取信息。
+    if (!passenger.returned && (!passenger.returnedBy.isEmpty() || !passenger.returnedAt.isEmpty() || passenger.deviceLeft))
+        return "未归还记录含有回收信息。";
+    if (passenger.returned && !validOperation(passenger.returnedBy, passenger.returnedAt))
+        return "回收人工号或时间不正确。";
+    if (!passenger.deviceLeft && (passenger.deviceClaimed || !passenger.contactNote.isEmpty() ||
+        !passenger.contactedBy.isEmpty() || !passenger.contactedAt.isEmpty() || !passenger.claimedBy.isEmpty() || !passenger.claimedAt.isEmpty()))
+        return "没有遗留设备的记录含有处理信息。";
+    if (passenger.contactNote.size() > 2000) return "联系备注不能超过 2000 个字符。";
+    if (passenger.contactNote.isEmpty()) {
+        if (!passenger.contactedBy.isEmpty() || !passenger.contactedAt.isEmpty()) return "空备注含有联系人信息。";
+    } else if (passenger.contactNote.trimmed().isEmpty() || !validOperation(passenger.contactedBy, passenger.contactedAt))
+        return "联系备注或操作信息不正确。";
+    if (passenger.deviceClaimed) {
+        if (!validOperation(passenger.claimedBy, passenger.claimedAt)) return "领取操作人工号或时间不正确。";
+    } else if (!passenger.claimedBy.isEmpty() || !passenger.claimedAt.isEmpty()) return "未领取记录含有领取信息。";
     return {};
 }

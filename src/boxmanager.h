@@ -2,7 +2,7 @@
 #include "models.h"
 #include "datastore.h"
 
-/** 第二天业务：验证乘务员、设置航班、登记发放及文件保存。 */
+/** 业务管理：登录、登记、回收及遗留设备处理。 */
 class BoxManager {
 public:
     /** @brief 设置数据目录。 @param directory 保存 JSON 的目录。 @return 无。 */
@@ -15,6 +15,14 @@ public:
     QString setFlight(const QString &number, const QDate &date, const QString &origin, const QString &destination);
     /** @brief 校验并登记发放。 @param passenger 乘客输入信息。 @return 空字符串为成功，否则为错误。 */
     QString issue(Passenger passenger);
+    /** @brief 按盒号或座位精确查询。 @param query 查询文字。 @param bySeat 为 true 时按座位查询。 @return 乘客下标，未登录或未找到为 -1。 */
+    int findPassenger(const QString &query, bool bySeat = false) const;
+    /** @brief 确认盒子归还。 @param boxNumber 盒号。 @param deviceLeft 是否发现遗留设备。 @return 空字符串为成功，否则为错误。 */
+    QString returnBox(const QString &boxNumber, bool deviceLeft);
+    /** @brief 保存联系备注。 @param boxNumber 盒号。 @param note 联系情况，最多 2000 字符。 @return 空字符串为成功，否则为错误。 */
+    QString saveContactNote(const QString &boxNumber, const QString &note);
+    /** @brief 确认遗留设备领取。 @param boxNumber 盒号。 @return 空字符串为成功，否则为错误。 */
+    QString claimDevice(const QString &boxNumber);
     /** @brief 提供界面读取的数据接口。 @return 只读航班数据。 */
     const FlightData &data() const;
     /** @brief 获取当前登录人员。 @return 工号，未登录时为空。 */

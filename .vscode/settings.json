@@ -2,6 +2,13 @@
   "cmake.cmakePath": "/opt/homebrew/bin/cmake",
   "cmake.buildDirectory": "${workspaceFolder}/build",
   "cmake.configureOnOpen": true,
+  "files.associations": {
+    "*.h": "cpp"
+  },
+  "code-runner.ignoreSelection": true,
+  "code-runner.executorMap": {
+    "cpp": "/opt/homebrew/bin/cmake -S \"$workspaceRoot\" -B \"$workspaceRoot/build\" -DCMAKE_PREFIX_PATH=/opt/homebrew && /opt/homebrew/bin/cmake --build \"$workspaceRoot/build\" --parallel 4 && open \"$workspaceRoot/build/MagicBox.app\""
+  },
   "cmake.configureSettings": {
     "CMAKE_BUILD_TYPE": "Debug",
     "CMAKE_PREFIX_PATH": "/opt/homebrew",

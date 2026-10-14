@@ -7,3 +7,5 @@ Passenger normalizePassenger(Passenger passenger);
 QString validatePassenger(const Passenger &passenger);
 /** @brief 检查航班必填信息。 @param flight 航班数据。 @return 空字符串表示通过，否则为错误提示。 */
 QString validateFlight(const FlightData &flight);
+/** @brief 检查回收、联系和领取状态是否一致。 @param passenger 乘客记录。 @return 空字符串为通过，否则为错误。 */
+QString validateRecovery(const Passenger &passenger);

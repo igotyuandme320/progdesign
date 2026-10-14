@@ -6,7 +6,7 @@
 
 | 人员 | 编写内容 | 对应文件 |
 | --- | --- | --- |
-| 我（Leader、构思者） | 确定功能和结构，建立工程、程序入口与业务接口骨架 | CMakeLists.txt、main.cpp、boxmanager.h / .cpp |
+| 我| 确定功能和结构，建立工程、程序入口与业务接口骨架 | CMakeLists.txt、main.cpp、boxmanager.h / .cpp |
 | 组员A | 根据方案编写窗口、表单布局和标签导航 | mainwindow.h / .cpp |
 | 组员B | 根据字段约定编写账户、航班、乘客结构体及注释 | models.h |
 
