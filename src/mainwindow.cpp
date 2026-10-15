@@ -1,8 +1,10 @@
 #include "mainwindow.h"
+#include "surveydialog.h"
 #include <QComboBox>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDateEdit>
+#include <QDialogButtonBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFormLayout>
@@ -14,6 +16,7 @@
 #include <QPushButton>
 #include <QPlainTextEdit>
 #include <QScrollArea>
+#include <QSpinBox>
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QUrl>
@@ -26,30 +29,27 @@ static QLineEdit *addField(QFormLayout *form, const QString &label, const QStrin
     form->addRow(label, input); return input;
 }
 
-/** @brief 保留后续日期的页面原型。 @param description 进度说明。 @param fields 输入项。 @param buttons 待开发按钮。 @return 原型页面。 */
-static QWidget *makePrototype(const QString &description, const QStringList &fields, const QStringList &buttons) {
-    auto *page = new QWidget; ///< 页面内容。
-    page->setObjectName("formPage");
-    auto *layout = new QVBoxLayout(page); ///< 页面布局。
-    layout->setContentsMargins(24, 22, 24, 22); layout->setSpacing(18);
-    auto *label = new QLabel(description); ///< 当前开发进度。
-    label->setObjectName("descriptionLabel");
-    label->setWordWrap(true); layout->addWidget(label);
-    auto *form = new QFormLayout; ///< 原型输入表单。
-    form->setSpacing(14); form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
-    for (const QString &name : fields) // name：当前输入项的名称。
-        addField(form, name, {});
-    layout->addLayout(form);
-    auto *actions = new QHBoxLayout; ///< 待开发的按钮区域。
-    for (const QString &name : buttons) { // name：当前按钮的文字。
-        auto *button = new QPushButton(name); ///< 灰色的原型按钮。
-        button->setEnabled(false); actions->addWidget(button);
-    }
-    layout->addLayout(actions); layout->addStretch();
-    auto *scroll = new QScrollArea; ///< 小窗口下的滚动区域。
-    scroll->setFrameShape(QFrame::NoFrame); scroll->setWidgetResizable(true); scroll->setWidget(page); return scroll;
+/** @brief 创建统一样式的只读表格。 @param headers 列标题。 @param name 控件名称。 @return 表格。 */
+static QTableWidget *makeTable(const QStringList &headers, const QString &name) {
+    auto *table = new QTableWidget(0, int(headers.size())); ///< 新的只读数据表。
+    table->setObjectName(name); table->setHorizontalHeaderLabels(headers);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers); table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    table->horizontalHeader()->setStretchLastSection(true); table->verticalHeader()->setVisible(false);
+    table->verticalHeader()->setDefaultSectionSize(38); table->setAlternatingRowColors(true);
+    table->setMinimumHeight(150); return table;
+}
+
+/** @brief 转换评价数值。 @param rating -1、0、1、2。 @return 中文评价名称。 */
+static QString ratingText(int rating) {
+    if (rating == 1) return "满意";
+    if (rating == 2) return "不满意";
+    return rating == 0 ? "不表态" : "未评价";
+}
+
+/** @brief 显示比例并处理零分母。 @param numerator 分子。 @param denominator 分母。 @return 百分比或暂无数据。 */
+static QString percentage(int numerator, int denominator) {
+    return denominator == 0 ? QString("暂无数据") : QString::number(100.0 * numerator / denominator, 'f', 1) + "%";
 }
 
 /** @brief 获取设备状态文字。 @param passenger 一条乘客记录。 @return 待检查、无遗留、待领取或已领取。 */
@@ -74,7 +74,7 @@ MainWindow::MainWindow(BoxManager &manager) : manager(manager) {
         QLabel#subtitleLabel, QLabel#descriptionLabel { color: #718096; }
         QLabel#sectionTitle { font-size: 16px; font-weight: bold; color: #355779; }
         QLabel#crewLabel { background: #edf4ff; color: #35629c; border-radius: 12px; padding: 6px 12px; }
-        QLineEdit, QComboBox, QDateEdit, QPlainTextEdit {
+        QLineEdit, QComboBox, QDateEdit, QSpinBox, QPlainTextEdit {
             background: white; border: 1px solid #cfdae7; border-radius: 6px;
             padding: 6px 9px; min-height: 18px; selection-background-color: #dbeafe;
         }
@@ -213,21 +213,154 @@ MainWindow::MainWindow(BoxManager &manager) : manager(manager) {
         queryType->setCurrentIndex(0); queryField->setText(this->manager.data().passengers[row].boxNumber);
         tabs->setCurrentIndex(1); searchPassenger();
     });
-    tabs->addTab(makePrototype("第4天接入三种评价及意见记录。",
-        {"乘客姓名或盒号", "意见与建议"}, {"1 满意", "2 不满意", "0 不表态"}), "评价与意见");
-    tabs->addTab(makePrototype("第4天接入满意度统计和手机号抽奖。",
-        {"抽奖人数"}, {"查看满意度", "抽取中奖手机号"}), "满意度与抽奖");
+    tabs->addTab(makeSurveyPage(), "评价与意见");
+    tabs->addTab(makeStatisticsPage(), "满意度与抽奖");
     layout->addWidget(tabs, 1);
     auto *footer = new QHBoxLayout; ///< 提示与数据目录入口。
     messageLabel = new QLabel("请登录后开始登记。"); messageLabel->setObjectName("messageLabel"); messageLabel->setWordWrap(true);
     auto *openDirectory = new QPushButton("打开数据目录"); ///< 定位 JSON 的按钮。
     openDirectory->setCursor(Qt::PointingHandCursor);
-    footer->addWidget(messageLabel, 1); footer->addWidget(openDirectory); layout->addLayout(footer);
+    newFlightButton = new QPushButton("新建航班"); newFlightButton->setObjectName("newFlightButton");
+    connect(newFlightButton, &QPushButton::clicked, this, &MainWindow::newFlight);
+    footer->addWidget(messageLabel, 1); footer->addWidget(newFlightButton); footer->addWidget(openDirectory); layout->addLayout(footer);
     connect(openDirectory, &QPushButton::clicked, this, [this] {
         if (!QDir().mkpath(this->manager.directory()) || !QDesktopServices::openUrl(QUrl::fromLocalFile(this->manager.directory())))
             showResult("无法打开数据目录：" + this->manager.directory(), {});
     });
     setCentralWidget(root); refresh();
+}
+
+QWidget *MainWindow::makeSurveyPage() {
+    auto *page = new QWidget; ///< 乘务员选择评价乘客的页面。
+    page->setObjectName("formPage");
+    auto *layout = new QVBoxLayout(page); ///< 评价管理页布局。
+    layout->setContentsMargins(20, 16, 20, 16); layout->setSpacing(12);
+    auto *description = new QLabel("选择尚未评价的乘客，再交给乘客填写。评价页不显示乘客资料，返回需要乘务员工号和密码。"); ///< 操作说明。
+    description->setObjectName("descriptionLabel"); description->setWordWrap(true); layout->addWidget(description);
+    auto *selection = new QHBoxLayout; ///< 乘客选择与进入按钮。
+    surveyPassenger = new QComboBox; surveyPassenger->setObjectName("surveyPassenger");
+    startSurveyButton = new QPushButton("进入乘客评价页"); startSurveyButton->setObjectName("startSurveyButton");
+    startSurveyButton->setProperty("primary", true);
+    selection->addWidget(surveyPassenger, 1); selection->addWidget(startSurveyButton); layout->addLayout(selection);
+    connect(startSurveyButton, &QPushButton::clicked, this, &MainWindow::startSurvey);
+    surveyTable = makeTable({"盒号", "座位", "姓名", "评价", "意见与建议"}, "surveyTable");
+    layout->addWidget(surveyTable, 1); return page;
+}
+
+QWidget *MainWindow::makeStatisticsPage() {
+    auto *page = new QWidget; ///< 统计与抽奖页面内容。
+    page->setObjectName("formPage");
+    auto *layout = new QVBoxLayout(page); ///< 统计页布局。
+    layout->setContentsMargins(20, 16, 20, 16); layout->setSpacing(12);
+    surveySummary = new QLabel; surveySummary->setObjectName("surveySummary"); surveySummary->setWordWrap(true);
+    layout->addWidget(surveySummary);
+    auto *opinionTitle = new QLabel("乘客意见（双击查看完整内容）"); ///< 意见列表标题。
+    opinionTitle->setObjectName("sectionTitle"); layout->addWidget(opinionTitle);
+    opinionTable = makeTable({"盒号", "姓名", "评价", "意见与建议"}, "opinionTable"); layout->addWidget(opinionTable);
+    connect(opinionTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int) { // row：要查看意见的行。
+        QDialog dialog(this); ///< 只读的完整意见窗口。
+        dialog.setWindowTitle("乘客意见"); dialog.resize(600, 360);
+        auto *layout = new QVBoxLayout(&dialog); ///< 意见窗口布局。
+        auto *text = new QPlainTextEdit; ///< 完整意见文本。
+        text->setReadOnly(true); text->setPlainText(opinionTable->item(row, 3)->text()); layout->addWidget(text);
+        auto *close = new QPushButton("关闭"); ///< 返回统计页面的按钮。
+        layout->addWidget(close); connect(close, &QPushButton::clicked, &dialog, &QDialog::accept); dialog.exec();
+    });
+    auto *lotteryTitle = new QLabel("手机号抽奖"); ///< 抽奖区标题。
+    lotteryTitle->setObjectName("sectionTitle"); layout->addWidget(lotteryTitle);
+    lotterySummary = new QLabel; lotterySummary->setObjectName("lotterySummary"); lotterySummary->setWordWrap(true); layout->addWidget(lotterySummary);
+    auto *actions = new QHBoxLayout; ///< 抽奖人数与按钮。
+    winnerCount = new QSpinBox; winnerCount->setObjectName("winnerCount"); winnerCount->setRange(1, 999); winnerCount->setValue(1);
+    drawButton = new QPushButton("抽取并保存中奖号码"); drawButton->setObjectName("drawButton"); drawButton->setProperty("primary", true);
+    actions->addWidget(new QLabel("抽奖人数")); actions->addWidget(winnerCount); actions->addStretch(); actions->addWidget(drawButton); layout->addLayout(actions);
+    connect(drawButton, &QPushButton::clicked, this, [this] {
+        QStringList phones; ///< 保存成功后展示的本轮中奖手机号。
+        const QString error = this->manager.drawLottery(winnerCount->value(), phones); ///< 抽奖及保存结果。
+        if (showResult(error, "本轮中奖：" + phones.join("、"))) refresh();
+    });
+    winnerTable = makeTable({"中奖手机号", "操作工号", "抽奖时间"}, "winnerTable");
+    winnerTable->setColumnWidth(0, 170); layout->addWidget(winnerTable);
+    auto *scroll = new QScrollArea; ///< 小窗口下滚动查看全部统计。
+    scroll->setWidgetResizable(true); scroll->setFrameShape(QFrame::NoFrame); scroll->setWidget(page); return scroll;
+}
+
+void MainWindow::startSurvey() {
+    const QString box = surveyPassenger->currentData().toString(); ///< 乘务员选中的待评价盒号。
+    if (manager.findPassenger(box) < 0 || !resolveContactDraft()) return;
+    SurveyDialog dialog(manager, box, this); ///< 一人一次的专用评价窗口。
+    // 管理窗口隐藏后再展示乘客页，避免后台露出其他乘客资料。
+    hide(); dialog.exec(); show(); refresh();
+}
+
+void MainWindow::refreshSurvey() {
+    const bool authenticated = !manager.currentCrew().isEmpty(); ///< 是否允许显示乘客资料。
+    const QString previous = surveyPassenger->currentData().toString(); ///< 刷新前的待评价乘客。
+    surveyPassenger->clear(); surveyTable->setRowCount(0); opinionTable->setRowCount(0); winnerTable->setRowCount(0);
+    if (authenticated) {
+        for (const Passenger &item : manager.data().passengers) { // item：一名登记乘客。
+            if (item.rating == -1) surveyPassenger->addItem(item.boxNumber + "　" + item.seat + "　" + item.name, item.boxNumber);
+            const int row = surveyTable->rowCount(); ///< 评价表中新增的行。
+            surveyTable->insertRow(row);
+            const QStringList values = {item.boxNumber, item.seat, item.name, ratingText(item.rating), item.opinion}; ///< 一行评价内容。
+            for (int column = 0; column < values.size(); ++column) // column：评价表列下标。
+                surveyTable->setItem(row, column, new QTableWidgetItem(values[column]));
+            if (item.rating >= 0 && !item.opinion.isEmpty()) {
+                const int opinionRow = opinionTable->rowCount(); ///< 意见表中新增的行。
+                opinionTable->insertRow(opinionRow);
+                const QStringList opinions = {item.boxNumber, item.name, ratingText(item.rating), item.opinion}; ///< 一行非空意见。
+                for (int column = 0; column < opinions.size(); ++column) // column：意见表列下标。
+                    opinionTable->setItem(opinionRow, column, new QTableWidgetItem(opinions[column]));
+            }
+        }
+        for (const LotteryWinner &winner : manager.data().winners) { // winner：已保存的中奖记录。
+            const int row = winnerTable->rowCount(); ///< 中奖表新增的行。
+            winnerTable->insertRow(row);
+            winnerTable->setItem(row, 0, new QTableWidgetItem(winner.phone));
+            winnerTable->setItem(row, 1, new QTableWidgetItem(winner.drawnBy));
+            winnerTable->setItem(row, 2, new QTableWidgetItem(winner.drawnAt));
+        }
+    }
+    const int previousIndex = surveyPassenger->findData(previous); ///< 原来选中的乘客在新列表中的位置。
+    if (previousIndex >= 0) surveyPassenger->setCurrentIndex(previousIndex);
+    startSurveyButton->setEnabled(authenticated && surveyPassenger->count() > 0);
+    newFlightButton->setEnabled(authenticated); drawButton->setEnabled(authenticated);
+    const SurveyStats stats = manager.surveyStats(); ///< 从原始数据计算的人数。
+    const int submitted = stats.satisfied + stats.dissatisfied + stats.neutral; ///< 已评价人数，包含不表态。
+    surveySummary->setText(QString("满意 %1 人　不满意 %2 人　不表态 %3 人\n已评价 %4 人　未评价 %5 人\n"
+        "参与率（已评价 ÷ 登记人数）：%6\n满意率（满意 ÷ 全部已评价）：%7\n已表态满意率（满意 ÷ 满意与不满意人数）：%8")
+        .arg(stats.satisfied).arg(stats.dissatisfied).arg(stats.neutral).arg(submitted).arg(stats.total - submitted)
+        .arg(percentage(submitted, stats.total)).arg(percentage(stats.satisfied, submitted))
+        .arg(percentage(stats.satisfied, stats.satisfied + stats.dissatisfied)));
+    lotterySummary->setText(QString("已评价乘客按手机号去重，包含选择 0 的乘客。\n本轮可抽 %1 个号码，已有 %2 个号码中奖；中奖号码不再参与后续抽取。")
+        .arg(manager.lotteryCandidates().size()).arg(authenticated ? manager.data().winners.size() : 0));
+}
+
+void MainWindow::newFlight() {
+    if (!resolveContactDraft()) return;
+    QDialog dialog(this); ///< 新航班信息表单。
+    dialog.setObjectName("newFlightDialog"); dialog.setWindowTitle("备份并新建航班"); dialog.resize(460, 320);
+    auto *form = new QFormLayout(&dialog); ///< 新航班表单布局。
+    auto *description = new QLabel("需先回收全部盒子并处理完遗留设备。旧航班会备份到数据目录的 history 文件夹。"); ///< 备份说明。
+    description->setWordWrap(true); form->addRow(description);
+    auto *number = addField(form, "航班号", "newNumber"); ///< 新航班号。
+    auto *date = new QDateEdit(QDate::currentDate()); ///< 新航班日期。
+    date->setObjectName("newDate"); date->setDisplayFormat("yyyy-MM-dd"); date->setCalendarPopup(true); form->addRow("日期", date);
+    auto *origin = addField(form, "出发地", "newOrigin"); ///< 新出发地。
+    auto *destination = addField(form, "目的地", "newDestination"); ///< 新目的地。
+    auto *errorLabel = new QLabel; ///< 新建失败时在表单内显示的原因。
+    errorLabel->setWordWrap(true); errorLabel->setTextFormat(Qt::PlainText); form->addRow(errorLabel);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel); ///< 确认和取消按钮。
+    buttons->button(QDialogButtonBox::Ok)->setText("备份并新建"); buttons->button(QDialogButtonBox::Cancel)->setText("取消"); form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [this, &dialog, number, date, origin, destination, errorLabel] {
+        const QString error = manager.startNewFlight(number->text(), date->date(), origin->text(), destination->text()); ///< 备份及提交结果。
+        if (error.isEmpty()) dialog.accept(); else errorLabel->setText(error);
+    });
+    if (dialog.exec() != QDialog::Accepted) return;
+    selectedBox.clear(); contactBox.clear(); contactField->clear(); queryField->clear();
+    for (QLineEdit *field : {nameField, documentField, boardingField, seatField, phoneModelField, phoneField, backupField, boxField}) // field：旧航班未提交的表单内容。
+        field->clear();
+    tabs->setCurrentIndex(0); refresh(); showResult({}, "新航班已建立，旧航班已备份到 history。");
 }
 
 QWidget *MainWindow::makeRecoveryPage() {
@@ -400,4 +533,5 @@ void MainWindow::refresh() {
             passengerTable->setItem(row, column, new QTableWidgetItem(values[column]));
     }
     refreshRecovery();
+    refreshSurvey();
 }

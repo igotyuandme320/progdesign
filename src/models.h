@@ -11,7 +11,7 @@ struct CrewAccount {
     QString password; ///< 课程演示密码。
 };
 
-/** 乘客记录初稿，供后续发放、回收和评价使用。 */
+/** 一个乘客的发放、回收及评价记录。 */
 struct Passenger {
     QString name; ///< 乘客姓名。
     QString documentType; ///< 证件类型。
@@ -38,6 +38,21 @@ struct Passenger {
     QString opinion; ///< 意见与建议。
 };
 
+/** 一次抽奖中一个中奖号码的记录。 */
+struct LotteryWinner {
+    QString phone; ///< 去重后的中奖手机号。
+    QString drawnBy; ///< 抽奖操作人工号。
+    QString drawnAt; ///< 抽奖时间。
+};
+
+/** 从原始评价计算的人数，不单独保存到文件。 */
+struct SurveyStats {
+    int total = 0; ///< 登记乘客总人数。
+    int satisfied = 0; ///< 选择 1 满意的人数。
+    int dissatisfied = 0; ///< 选择 2 不满意的人数。
+    int neutral = 0; ///< 选择 0 不表态的人数。
+};
+
 /** 一个航班的基础数据。 */
 struct FlightData {
     QString number; ///< 航班号。
@@ -45,6 +60,7 @@ struct FlightData {
     QString origin; ///< 出发地。
     QString destination; ///< 目的地。
     QVector<Passenger> passengers; ///< 该航班的乘客列表。
+    QVector<LotteryWinner> winners; ///< 当前航班已经保存的中奖记录。
 };
 
 Q_DECLARE_METATYPE(CrewAccount)

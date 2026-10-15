@@ -12,8 +12,9 @@ class QPushButton;
 class QPlainTextEdit;
 class QTableWidget;
 class QTabWidget;
+class QSpinBox;
 
-/** 登录、登记、回收与遗留设备处理窗口；评价及抽奖仍保留原型。 */
+/** 登录、航班、发放、回收、评价和抽奖管理窗口。 */
 class MainWindow : public QMainWindow {
 public:
     /** @brief 创建界面并连接按钮。 @param manager 已加载的业务对象。 @return 无。 */
@@ -38,6 +39,16 @@ private:
     bool hasContactDraft() const;
     /** @brief 切换记录或关闭前选择保存、放弃或取消。 @return 是否允许继续。 */
     bool resolveContactDraft();
+    /** @brief 创建乘务员选择评价乘客的页面。 @return 评价管理页面。 */
+    QWidget *makeSurveyPage();
+    /** @brief 创建统计、意见和抽奖页面。 @return 可滚动的统计页面。 */
+    QWidget *makeStatisticsPage();
+    /** @brief 刷新评价、意见、统计和中奖记录。 @return 无。 */
+    void refreshSurvey();
+    /** @brief 隐藏管理窗口，进入选中乘客的专用评价页。 @return 无。 */
+    void startSurvey();
+    /** @brief 通过表单备份旧航班并建立新航班。 @return 无。 */
+    void newFlight();
     /** @brief 显示操作结果。 @param error 错误，为空表示成功。 @param success 成功提示。 @return 是否成功。 */
     bool showResult(const QString &error, const QString &success);
     BoxManager &manager; ///< 窗口共享的业务对象。
@@ -74,4 +85,14 @@ private:
     QPushButton *claimButton; ///< 确认设备领取按钮。
     QString selectedBox; ///< 当前查询到的盒号，查询条件改变时清空。
     QString contactBox; ///< 当前备注所属盒号，查询条件变化时仍用于保留草稿。
+    QPushButton *newFlightButton; ///< 不受已发放锁定限制的新建航班入口。
+    QComboBox *surveyPassenger; ///< 选择尚未评价的乘客。
+    QPushButton *startSurveyButton; ///< 进入专用乘客评价页。
+    QTableWidget *surveyTable; ///< 每名乘客的评价与意见。
+    QLabel *surveySummary; ///< 各类评价、未评价人数和三个比例。
+    QTableWidget *opinionTable; ///< 已提交的非空意见列表。
+    QSpinBox *winnerCount; ///< 本轮要抽取的人数。
+    QPushButton *drawButton; ///< 保存并展示中奖结果的按钮。
+    QLabel *lotterySummary; ///< 去重候选号码和已中奖号码数量。
+    QTableWidget *winnerTable; ///< 中奖手机号、操作人和时间。
 };

@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QSaveFile>
 #include <QSet>
+#include <QUuid>
 
 DataStore::DataStore(const QString &directory) : filePath(QDir(directory).filePath("records.json")) {}
 
@@ -24,7 +25,8 @@ bool DataStore::load(FlightData &data, QString &error) const {
     }
     const QJsonObject root = document.object(); ///< 文件根对象。
     const bool legacy = root["version"] == QJsonValue(1); ///< 是否为第二天的旧格式。
-    if ((!legacy && root["version"] != QJsonValue(2)) || !root["passengers"].isArray()) {
+    const bool day4 = root["version"] == QJsonValue(3); ///< 是否包含评价及中奖记录的新格式。
+    if ((!legacy && !day4 && root["version"] != QJsonValue(2)) || !root["passengers"].isArray()) {
         error = "数据文件版本或结构不正确。"; return false;
     }
     FlightData candidate; ///< 全部校验成功后才交给业务层的档案。
@@ -59,6 +61,15 @@ bool DataStore::load(FlightData &data, QString &error) const {
             item.contactedBy = object["contactedBy"].toString(); item.contactedAt = object["contactedAt"].toString();
             item.claimedBy = object["claimedBy"].toString(); item.claimedAt = object["claimedAt"].toString();
         }
+        if (day4) {
+            if (!object["rating"].isDouble() || object["rating"].toDouble() != object["rating"].toInt() || !object["opinion"].isString()) {
+                error = "文件中的评价格式不正确。"; return false;
+            }
+            item.rating = object["rating"].toInt(); item.opinion = object["opinion"].toString();
+            if (item.rating < -1 || item.rating > 2 || item.opinion.size() > 2000 || (item.rating == -1 && !item.opinion.isEmpty())) {
+                error = "文件中的评价内容不正确。"; return false;
+            }
+        }
         // 拒绝不完整及重复记录，避免损坏文件被覆盖成新档案。
         if (!validatePassenger(item).isEmpty() || !validateRecovery(item).isEmpty() || (item.issuedBy != "1001" && item.issuedBy != "1002") ||
             !QDateTime::fromString(item.issuedAt, "yyyy-MM-dd HH:mm:ss").isValid() ||
@@ -67,6 +78,23 @@ bool DataStore::load(FlightData &data, QString &error) const {
         }
         boxes.insert(item.boxNumber); documents.insert(item.documentNumber); seats.insert(item.seat); passes.insert(item.boardingPass);
         candidate.passengers.append(item);
+    }
+    if (day4) {
+        if (!root["winners"].isArray()) { error = "文件中的中奖列表不正确。"; return false; }
+        QSet<QString> eligible; ///< 已提交评价的手机号集合。
+        QSet<QString> drawn; ///< 防止同一手机号重复中奖。
+        for (const Passenger &item : candidate.passengers) // item：已读取的乘客记录。
+            if (item.rating >= 0) eligible.insert(item.phone);
+        for (const QJsonValue &value : root["winners"].toArray()) { // value：一条中奖记录。
+            const QJsonObject object = value.toObject(); ///< 当前中奖 JSON 对象。
+            LotteryWinner winner{object["phone"].toString(), object["drawnBy"].toString(), object["drawnAt"].toString()}; ///< 待校验的中奖记录。
+            if (!eligible.contains(winner.phone) || drawn.contains(winner.phone) ||
+                (winner.drawnBy != "1001" && winner.drawnBy != "1002") ||
+                !QDateTime::fromString(winner.drawnAt, "yyyy-MM-dd HH:mm:ss").isValid()) {
+                error = "文件中的中奖号码或操作信息不正确。"; return false;
+            }
+            drawn.insert(winner.phone); candidate.winners.append(winner);
+        }
     }
     data = candidate; return true;
 }
@@ -83,12 +111,16 @@ bool DataStore::save(const FlightData &data, QString &error) const {
             {"returned", item.returned}, {"returnedBy", item.returnedBy}, {"returnedAt", item.returnedAt},
             {"deviceLeft", item.deviceLeft}, {"deviceClaimed", item.deviceClaimed},
             {"contactNote", item.contactNote}, {"contactedBy", item.contactedBy}, {"contactedAt", item.contactedAt},
-            {"claimedBy", item.claimedBy}, {"claimedAt", item.claimedAt}
+            {"claimedBy", item.claimedBy}, {"claimedAt", item.claimedAt},
+            {"rating", item.rating}, {"opinion", item.opinion}
         });
     }
+    QJsonArray winners; ///< 待保存的中奖记录数组。
+    for (const LotteryWinner &winner : data.winners) // winner：一个已中奖手机号。
+        winners.append(QJsonObject{{"phone", winner.phone}, {"drawnBy", winner.drawnBy}, {"drawnAt", winner.drawnAt}});
     const QJsonObject root = { ///< 带版本号的完整档案。
-        {"version", 2}, {"number", data.number}, {"date", data.date.toString(Qt::ISODate)},
-        {"origin", data.origin}, {"destination", data.destination}, {"passengers", passengers}
+        {"version", 3}, {"number", data.number}, {"date", data.date.toString(Qt::ISODate)},
+        {"origin", data.origin}, {"destination", data.destination}, {"passengers", passengers}, {"winners", winners}
     };
     if (!QDir().mkpath(QFileInfo(filePath).absolutePath())) { error = "无法创建数据目录。"; return false; }
     QSaveFile file(filePath); ///< 先写临时文件，再替换原文件。
@@ -97,5 +129,13 @@ bool DataStore::save(const FlightData &data, QString &error) const {
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
         error = "保存失败：" + file.errorString(); return false;
     }
+    return true;
+}
+
+bool DataStore::archive(const FlightData &data, QString &error) const {
+    const QString folder = QFileInfo(filePath).absolutePath() + "/history/" +
+        data.date.toString("yyyyMMdd") + "_" + QUuid::createUuid().toString(QUuid::WithoutBraces); ///< 不覆盖旧备份的唯一目录。
+    DataStore backup(folder); ///< 复用同一个 JSON 保存过程。
+    if (!backup.save(data, error)) { error = "旧航班备份失败：" + error; return false; }
     return true;
 }

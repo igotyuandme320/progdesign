@@ -1,6 +1,8 @@
 #include "boxmanager.h"
 #include "validation.h"
 #include <QDateTime>
+#include <QRandomGenerator>
+#include <QSet>
 
 BoxManager::BoxManager(const QString &directory) : dataDirectory(directory), store(directory) {}
 
@@ -125,3 +127,80 @@ QString BoxManager::claimDevice(const QString &boxNumber) {
 QString BoxManager::currentCrew() const { return crewId; }
 
 QString BoxManager::directory() const { return dataDirectory; }
+
+QString BoxManager::submitRating(const QString &boxNumber, int rating, const QString &opinion) {
+    if (!loaded || crewId.isEmpty()) return "请先登录。";
+    const int index = findPassenger(boxNumber); ///< 本次评价的乘客位置。
+    if (index < 0) return "未找到该乘客。";
+    if (flightData.passengers[index].rating != -1) return "该乘客已经评价，不能重复提交。";
+    if (rating < 0 || rating > 2) return "评价只能选择 1、2 或 0。";
+    const QString text = opinion.trimmed(); ///< 去掉首尾空白后的意见。
+    if (text.size() > 2000) return "意见不能超过 2000 个字符。";
+    FlightData candidate = flightData; ///< 只在保存成功后正式采用的评价。
+    candidate.passengers[index].rating = rating; candidate.passengers[index].opinion = text;
+    return commit(candidate);
+}
+
+SurveyStats BoxManager::surveyStats() const {
+    SurveyStats stats; ///< 实时计算的人数。
+    if (!loaded || crewId.isEmpty()) return stats;
+    stats.total = int(flightData.passengers.size());
+    for (const Passenger &item : flightData.passengers) { // item：当前统计的乘客。
+        if (item.rating == 1) ++stats.satisfied;
+        else if (item.rating == 2) ++stats.dissatisfied;
+        else if (item.rating == 0) ++stats.neutral;
+    }
+    return stats;
+}
+
+QStringList BoxManager::lotteryCandidates() const {
+    QStringList phones; ///< 按登记顺序整理的可抽奖手机号。
+    if (!loaded || crewId.isEmpty()) return phones;
+    QSet<QString> excluded; ///< 已中奖或本轮已经加入的手机号。
+    for (const LotteryWinner &winner : flightData.winners) // winner：已经中奖的记录。
+        excluded.insert(winner.phone);
+    // 0 也是已提交评价；同一手机号即使登记多次也只获得一次机会。
+    for (const Passenger &item : flightData.passengers) { // item：候选乘客记录。
+        if (item.rating >= 0 && !excluded.contains(item.phone)) {
+            phones.append(item.phone); excluded.insert(item.phone);
+        }
+    }
+    return phones;
+}
+
+QString BoxManager::drawLottery(int count, QStringList &phones) {
+    phones.clear();
+    if (!loaded || crewId.isEmpty()) return "请先登录。";
+    QStringList candidates = lotteryCandidates(); ///< 本轮候选号码，随后进行局部洗牌。
+    if (count < 1) return "抽奖人数至少为 1。";
+    if (count > candidates.size()) return QString("候选不足：当前只有 %1 个未中奖的已评价手机号。").arg(candidates.size());
+    FlightData candidate = flightData; ///< 加入新中奖记录后的航班副本。
+    const QString time = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"); ///< 同一轮的抽奖时间。
+    // Fisher-Yates 洗牌：每一步从剩余号码中等概率选一个，天然不重复。
+    for (int index = 0; index < count; ++index) { // index：本轮第几个中奖名额。
+        const int chosen = QRandomGenerator::global()->bounded(index, int(candidates.size())); ///< 随机选中的位置。
+        candidates.swapItemsAt(index, chosen);
+        candidate.winners.append({candidates[index], crewId, time});
+    }
+    const QString error = commit(candidate); ///< 写入失败时不对外展示中奖号码。
+    if (!error.isEmpty()) return error;
+    phones = candidates.mid(0, count); return {};
+}
+
+QString BoxManager::startNewFlight(const QString &number, const QDate &date, const QString &origin, const QString &destination) {
+    if (!loaded || crewId.isEmpty()) return "请先登录。";
+    for (const Passenger &item : flightData.passengers) { // item：旧航班尚未完成的记录。
+        if (!item.returned) return "还有盒子未归还，请先完成回收。";
+        if (item.deviceLeft && !item.deviceClaimed) return "还有遗留设备未领取，请先完成处理。";
+    }
+    FlightData candidate; ///< 不携带旧乘客和中奖号码的新航班。
+    candidate.number = number.trimmed().toUpper(); candidate.date = date;
+    candidate.origin = origin.trimmed(); candidate.destination = destination.trimmed();
+    const QString validation = validateFlight(candidate); ///< 新航班必填项校验结果。
+    if (!validation.isEmpty()) return validation;
+    if (candidate.number == flightData.number && candidate.date == flightData.date) return "新航班的航班号和日期不能都与当前相同。";
+    QString error; ///< 旧航班备份失败原因。
+    // 先备份再替换；任一步失败都不清空原来的业务数据。
+    if (!flightData.number.isEmpty() && !store.archive(flightData, error)) return error;
+    return commit(candidate);
+}

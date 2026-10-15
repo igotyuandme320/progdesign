@@ -10,6 +10,8 @@ public:
     bool load(FlightData &data, QString &error) const;
     /** @brief 安全提交文件。 @param data 待保存档案。 @param error 输出错误。 @return 是否成功。 */
     bool save(const FlightData &data, QString &error) const;
+    /** @brief 将旧航班另存到 history 下的独立目录。 @param data 旧航班数据。 @param error 输出错误。 @return 是否备份成功。 */
+    bool archive(const FlightData &data, QString &error) const;
 private:
     QString filePath; ///< records.json 的完整路径。
 };
