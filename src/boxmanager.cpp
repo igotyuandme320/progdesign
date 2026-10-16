@@ -8,14 +8,15 @@ BoxManager::BoxManager(const QString &directory) : dataDirectory(directory), sto
 
 bool BoxManager::load(QString &error) {
     FlightData candidate; ///< 待读取档案。
-    loaded = store.load(candidate, error); crewId.clear();
+    loaded = store.load(candidate, error);
+    crewId.clear();
     if (loaded) flightData = candidate;
     return loaded;
 }
 
 bool BoxManager::login(const QString &employeeId, const QString &password) {
     const QString id = employeeId.trimmed(); ///< 去掉首尾空格的工号。
-    // 简单课程演示使用两个固定账号；失败的换岗不改变当前操作人。
+    // 使用两个固定账号；失败的换岗不改变当前操作人。
     const QVector<CrewAccount> accounts = { ///< 演示账户表。
         {"1001", "乘务员一", "Box@123456"}, {"1002", "乘务员二", "Box@123456"}
     };

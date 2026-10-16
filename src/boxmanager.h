@@ -5,6 +5,7 @@
 
 /** 业务管理：登录、发放、回收、评价、抽奖和新建航班。 */
 class BoxManager {
+
 public:
     /** @brief 设置数据目录。 @param directory 保存 JSON 的目录。 @return 无。 */
     explicit BoxManager(const QString &directory);

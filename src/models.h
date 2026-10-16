@@ -8,7 +8,7 @@
 struct CrewAccount {
     QString employeeId; ///< 工号。
     QString name; ///< 乘务员姓名。
-    QString password; ///< 课程演示密码。
+    QString password; ///< 密码。
 };
 
 /** 一个乘客的发放、回收及评价记录。 */
@@ -53,7 +53,7 @@ struct SurveyStats {
     int neutral = 0; ///< 选择 0 不表态的人数。
 };
 
-/** 一个航班的基础数据。 */
+/* 一个航班的基础数据。 */
 struct FlightData {
     QString number; ///< 航班号。
     QDate date = QDate::currentDate(); ///< 航班日期。
